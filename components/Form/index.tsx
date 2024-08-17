@@ -1,6 +1,7 @@
 import React, { useState, useRef } from "react";
 import { View, StyleSheet, Animated, Text, Dimensions, ScrollView } from "react-native";
 import { TextInput, Button } from "react-native-paper";
+import { supabase } from '../../config/supabaseClient';
 
 // Função para validar o CPF
 function validateCPF(cpf: string) {
@@ -19,7 +20,6 @@ function validateCPF(cpf: string) {
   }
 
   resto = (soma * 10) % 11;
-
   if (resto === 10 || resto === 11) resto = 0;
   if (resto !== parseInt(cpf.substring(9, 10))) return false;
 
@@ -29,12 +29,23 @@ function validateCPF(cpf: string) {
   }
 
   resto = (soma * 10) % 11;
-
   if (resto === 10 || resto === 11) resto = 0;
   if (resto !== parseInt(cpf.substring(10, 11))) return false;
 
   return true;
 }
+
+const saveToSupabase = async (data: any) => {
+    const { data: result, error } = await supabase
+      .from('formdatatwo') // Verifique o nome da tabela
+      .insert([data]);
+
+    if (error) {
+      console.error('Erro ao salvar dados:', error);
+    } else {
+      console.log('Dados salvos com sucesso:', result);
+    }
+};
 
 export default function Form() {
   const [name, setName] = useState("");
@@ -44,6 +55,8 @@ export default function Form() {
   const [cpfError, setCpfError] = useState(false);
   const [valueError, setValueError] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
+
+  const [formDataList, setFormDataList] = useState<any[]>([]); // Lista para armazenar os dados do formulário
 
   const shakeAnimation = useRef(new Animated.Value(0)).current;
 
@@ -72,7 +85,7 @@ export default function Form() {
     ]).start();
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     setSuccessMessage(""); // Limpa a mensagem de sucesso ao tentar enviar novamente
 
     let hasError = false;
@@ -96,8 +109,24 @@ export default function Form() {
       return;
     }
 
-    // Se não houver erros, exiba a mensagem de sucesso e limpe os campos
-    setSuccessMessage("Ótimo, Nota Enviada!");
+    // Configuração da requisição
+    const formData = {
+      name, // corresponde à coluna 'name'
+      cpf,  // corresponde à coluna 'cpf'
+      observation, // corresponde à coluna 'observation'
+      value: parseFloat(value), // corresponde à coluna 'value'
+      data: new Date().toISOString(), // Adiciona a data e a hora atuais
+    };
+
+    // Atualiza a lista com os novos dados
+    setFormDataList(prevList => {
+      const updatedList = [...prevList, formData];
+      saveToSupabase(formData); // Salva os dados no Supabase
+      setSuccessMessage("Ótimo, Nota Enviada!");
+      return updatedList;
+    });
+
+    // Limpa os campos do formulário
     setName("");
     setCpf("");
     setObservation("");
@@ -111,8 +140,6 @@ export default function Form() {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>Formulário</Text>
-
       <TextInput
         label="Nome (Opcional)"
         mode="outlined"
@@ -173,11 +200,6 @@ const styles = StyleSheet.create({
     padding: 20,
     justifyContent: "center",
     alignItems: "center",
-  },
-  title: {
-    marginBottom: 20,
-    textAlign: "center",
-    fontSize: 24,
   },
   input: {
     width: Dimensions.get("window").width * 0.9, // 90% da largura da tela
