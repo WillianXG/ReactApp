@@ -1,16 +1,16 @@
-import Form from "@/components/Form";
-import { View } from "react-native";
-import { Card, Text, TextInput, Button } from 'react-native-paper';
+import * as React from 'react';
+import { NavigationContainer } from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import HomeScreen from '../screens/Home';
+import NotesScreen from '../screens/Notes';
+import { ExpoRouter } from 'expo-router';
+import Routes from '@/routes';
 
-export default function Index() {
+const Stack = createNativeStackNavigator();
+
+export default function App() {
   return (
-    <View >
-      
-      <Text style={{alignSelf:"center", fontSize: 24, fontWeight: "bold", marginTop: 90 }}>
-        Informações sobre a Nota
-      </Text>
-
-      <Form/>
-    </View>
+    <Routes />
   );
 }
+
