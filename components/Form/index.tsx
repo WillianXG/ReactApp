@@ -109,14 +109,27 @@ export default function Form() {
       return;
     }
 
+    const formatDate = (date: Date) => {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0'); // Janeiro é 0!
+      const day = String(date.getDate()).padStart(2, '0');
+      const hours = String(date.getHours()).padStart(2, '0');
+      const minutes = String(date.getMinutes()).padStart(2, '0');
+    
+      return `${year}-${month}-${day} ${hours}:${minutes}`;
+    };
+    
+    
+
     // Configuração da requisição
     const formData = {
-      name, // corresponde à coluna 'name'
-      cpf,  // corresponde à coluna 'cpf'
-      observation, // corresponde à coluna 'observation'
-      value: parseFloat(value), // corresponde à coluna 'value'
-      data: new Date().toISOString(), // Adiciona a data e a hora atuais
+      name,
+      cpf,
+      observation,
+      value: parseFloat(value),
+      data: formatDate(new Date()), // Formata a data manualmente para "dd/mm/yyyy hh:mm"
     };
+    
 
     // Atualiza a lista com os novos dados
     setFormDataList(prevList => {

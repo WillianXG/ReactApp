@@ -4,11 +4,11 @@
     "slug": "Nota Simples",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/notas.svg",
+    "icon": "./assets/images/notas.png",
     "scheme": "myapp",
     "userInterfaceStyle": "automatic",
     "splash": {
-      "image": "./assets/images/splash.png",
+      "image": "./assets/images/notas.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
