@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Image, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, Image, RefreshControl, ActivityIndicator, TouchableOpacity, Alert } from 'react-native';
 import { Card, Title, Paragraph } from 'react-native-paper';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { SwipeListView } from 'react-native-swipe-list-view';
+import { FlatList } from 'react-native';
 
 const supabaseUrl = 'https://slcqpbnzklomznghkioq.supabase.co';
 const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNsY3FwYm56a2xvbXpuZ2hraW9xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MjM4NDg3OTEsImV4cCI6MjAzOTQyNDc5MX0.5twJFh_0_dhRCrc_Bnk89cQc_Z1DkJfQv95Y3ue89hs';
@@ -12,12 +12,15 @@ const supabase: SupabaseClient = createClient(supabaseUrl, supabaseKey);
 const Appsa = () => {
   const [data, setData] = useState<any[]>([]);
   const [refreshing, setRefreshing] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   const fetchData = async () => {
     try {
+      setLoading(true);
       let { data: formdatatwo, error } = await supabase
         .from('formdatatwo')
-        .select('*');
+        .select('*')
+        .order('data', { ascending: false });
 
       if (error) {
         console.error('Erro ao buscar dados:', error.message);
@@ -26,6 +29,8 @@ const Appsa = () => {
       }
     } catch (error) {
       console.error('Erro geral:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -40,20 +45,36 @@ const Appsa = () => {
   };
 
   const handleMarkAsDone = async (itemId: string) => {
-    try {
-      const { error } = await supabase
-        .from('formdatatwo')
-        .update({ check_done: 1 })
-        .eq('id', itemId);
+    Alert.alert(
+      'Nota Enviada Feita?',
+      'Você quer marcar esta nota como enviada?',
+      [
+        {
+          text: 'Não',
+          onPress: () => console.log('Ação cancelada'),
+          style: 'cancel',
+        },
+        {
+          text: 'Sim',
+          onPress: async () => {
+            try {
+              const { error } = await supabase
+                .from('formdatatwo')
+                .update({ check_done: 1 })
+                .eq('id', itemId);
 
-      if (error) {
-        console.error('Erro ao atualizar:', error.message);
-      } else {
-        fetchData();
-      }
-    } catch (error) {
-      console.error('Erro geral:', error);
-    }
+              if (error) {
+                console.error('Erro ao atualizar:', error.message);
+              } else {
+                fetchData();
+              }
+            } catch (error) {
+              console.error('Erro geral:', error);
+            }
+          },
+        },
+      ]
+    );
   };
 
   const renderItem = ({ item }: { item: any }) => (
@@ -71,47 +92,41 @@ const Appsa = () => {
           )}
         </View>
         <View style={styles.iconContainer}>
-          <Image 
-            source={
-              item.check_done === 1
-                ? require('../../assets/images/checked.png')
-                : require('../../assets/images/remove.png')
-            } 
-            style={styles.icon} 
-          />
+          <TouchableOpacity onPress={() => handleMarkAsDone(item.id)}>
+            <Image 
+              source={
+                item.check_done === 1
+                  ? require('../../assets/images/checked.png')
+                  : require('../../assets/images/remove.png')
+              } 
+              style={styles.icon} 
+            />
+          </TouchableOpacity>
         </View>
       </Card.Content>
     </Card>
   );
 
-  const renderHiddenItem = () => (
-    <View>
-      {/* Mantido vazio para remover fundo oculto */}
-    </View>
-  );
-
-  const handleSwipeValueChange = (swipeData: any) => {
-    const { key, value } = swipeData;
-    if (value < -75) {
-      handleMarkAsDone(key);
-    }
-  };
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#0000ff" />
+        <Text style={styles.loadingText}>Carregando notas...</Text>
+      </View>
+    );
+  }
 
   return (
-    <SwipeListView
+    <FlatList
       data={data}
       renderItem={renderItem}
-      renderHiddenItem={renderHiddenItem}
-      rightOpenValue={-75}
-      onSwipeValueChange={handleSwipeValueChange}
+      keyExtractor={item => item.id.toString()}
       refreshControl={
         <RefreshControl
           refreshing={refreshing}
           onRefresh={onRefresh}
         />
       }
-      disableRightSwipe
-      keyExtractor={item => item.id.toString()}
     />
   );
 };
@@ -132,8 +147,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   icon: {
-    width: 24,
-    height: 24,
+    width: 40, // Aumenta a largura do ícone
+    height: 40, // Aumenta a altura do ícone
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
   },
 });
 

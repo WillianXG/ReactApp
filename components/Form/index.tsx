@@ -1,10 +1,30 @@
-import React, { useState, useRef } from "react";
-import { View, StyleSheet, Animated, Text, Dimensions, ScrollView } from "react-native";
-import { TextInput, Button } from "react-native-paper";
+import React, { useState, useRef } from 'react';
+import { View, StyleSheet, Animated, Text, Dimensions, ScrollView } from 'react-native';
+import { TextInput, Button } from 'react-native-paper';
 import { supabase } from '../../config/supabaseClient';
+import { sendPushNotification } from '../../app/NotificationService'; // Importe a função para enviar notificações
 
-// Função para validar o CPF
-function validateCPF(cpf: string) {
+interface FormData {
+  name: string;
+  cpf: string;
+  observation: string;
+  value: number;
+  data: string;
+}
+
+const saveToSupabase = async (data: FormData) => {
+  const { data: result, error } = await supabase
+    .from('formdatatwo') // Verifique o nome da tabela
+    .insert([data]);
+
+  if (error) {
+    console.error('Erro ao salvar dados:', error);
+  } else {
+    console.log('Dados salvos com sucesso:', result);
+  }
+};
+
+const validateCPF = (cpf: string): boolean => {
   cpf = cpf.replace(/[^\d]+/g, ""); // Remove qualquer coisa que não seja número
   if (cpf.length !== 11) return false;
 
@@ -33,30 +53,18 @@ function validateCPF(cpf: string) {
   if (resto !== parseInt(cpf.substring(10, 11))) return false;
 
   return true;
-}
-
-const saveToSupabase = async (data: any) => {
-    const { data: result, error } = await supabase
-      .from('formdatatwo') // Verifique o nome da tabela
-      .insert([data]);
-
-    if (error) {
-      console.error('Erro ao salvar dados:', error);
-    } else {
-      console.log('Dados salvos com sucesso:', result);
-    }
 };
 
 export default function Form() {
-  const [name, setName] = useState("");
-  const [cpf, setCpf] = useState("");
-  const [observation, setObservation] = useState("");
-  const [value, setValue] = useState("");
-  const [cpfError, setCpfError] = useState(false);
-  const [valueError, setValueError] = useState(false);
-  const [successMessage, setSuccessMessage] = useState("");
-
-  const [formDataList, setFormDataList] = useState<any[]>([]); // Lista para armazenar os dados do formulário
+  const [name, setName] = useState<string>("");
+  const [cpf, setCpf] = useState<string>("");
+  const [observation, setObservation] = useState<string>("");
+  const [value, setValue] = useState<string>("");
+  const [cpfError, setCpfError] = useState<boolean>(false);
+  const [valueError, setValueError] = useState<boolean>(false);
+  const [successMessage, setSuccessMessage] = useState<string>("");
+  const [formDataList, setFormDataList] = useState<FormData[]>([]); // Estado definido com tipo FormData[]
+  const [expoPushToken, setExpoPushToken] = useState<string | null>(null);
 
   const shakeAnimation = useRef(new Animated.Value(0)).current;
 
@@ -86,7 +94,7 @@ export default function Form() {
   };
 
   const handleSubmit = async () => {
-    setSuccessMessage(""); // Limpa a mensagem de sucesso ao tentar enviar novamente
+    setSuccessMessage("");
 
     let hasError = false;
 
@@ -111,31 +119,32 @@ export default function Form() {
 
     const formatDate = (date: Date) => {
       const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, '0'); // Janeiro é 0!
+      const month = String(date.getMonth() + 1).padStart(2, '0');
       const day = String(date.getDate()).padStart(2, '0');
       const hours = String(date.getHours()).padStart(2, '0');
       const minutes = String(date.getMinutes()).padStart(2, '0');
     
       return `${year}-${month}-${day} ${hours}:${minutes}`;
     };
-    
-    
 
-    // Configuração da requisição
-    const formData = {
+    const formData: FormData = {
       name,
       cpf,
       observation,
       value: parseFloat(value),
-      data: formatDate(new Date()), // Formata a data manualmente para "dd/mm/yyyy hh:mm"
+      data: formatDate(new Date()),
     };
-    
 
     // Atualiza a lista com os novos dados
     setFormDataList(prevList => {
       const updatedList = [...prevList, formData];
       saveToSupabase(formData); // Salva os dados no Supabase
       setSuccessMessage("Ótimo, Nota Enviada!");
+
+      if (expoPushToken) {
+        sendPushNotification(expoPushToken, "Sua nota foi enviada com sucesso!");
+      }
+
       return updatedList;
     });
 
@@ -148,7 +157,7 @@ export default function Form() {
 
   const handleInputChange = (setter: React.Dispatch<React.SetStateAction<string>>) => (value: string) => {
     setter(value);
-    setSuccessMessage(""); // Limpa a mensagem de sucesso ao alterar qualquer campo
+    setSuccessMessage("");
   };
 
   return (
@@ -196,44 +205,35 @@ export default function Form() {
 
       <Animated.View style={{ transform: [{ translateX: shakeAnimation }] }}>
         <Button mode="contained" onPress={handleSubmit} style={styles.button}>
-          Enviar
+          Enviar Nota
         </Button>
       </Animated.View>
 
-      {successMessage !== "" && (
-        <Text style={styles.successText}>{successMessage}</Text>
-      )}
+      {successMessage ? <Text style={styles.successText}>{successMessage}</Text> : null}
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
+    padding: 16,
     flexGrow: 1,
-    padding: 20,
-    justifyContent: "center",
-    alignItems: "center",
   },
   input: {
-    width: Dimensions.get("window").width * 0.9, // 90% da largura da tela
-    marginBottom: 15,
+    marginBottom: 12,
   },
   textArea: {
-    height: 100,
+    minHeight: 100,
   },
   button: {
-    marginTop: 20,
-    backgroundColor: "#007AFF",
-    width: Dimensions.get("window").width * 0.9, // 90% da largura da tela
+    marginTop: 16,
   },
   errorText: {
-    color: "red",
-    marginBottom: 10,
+    color: 'red',
+    marginTop: 4,
   },
   successText: {
-    color: "green",
-    marginTop: 20,
-    textAlign: "center",
-    fontSize: 26,
+    color: 'green',
+    marginTop: 16,
   },
 });
